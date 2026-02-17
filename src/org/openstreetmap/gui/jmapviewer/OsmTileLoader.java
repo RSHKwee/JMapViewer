@@ -62,16 +62,37 @@ public class OsmTileLoader implements TileLoader {
                 tile.setLoaded(true);
                 listener.tileLoadingFinished(tile, true);
             } catch (IOException e) {
-                tile.setError(e.getMessage());
-                listener.tileLoadingFinished(tile, false);
-                if (input == null) {
-                    try {
-                        System.err.println("Failed loading " + tile.getUrl() +": "
-                                +e.getClass() + ": " + e.getMessage());
-                    } catch (IOException ioe) {
-                        ioe.printStackTrace();
+                // ========== NIEUWE FALLBACK-LOGICA ==========
+                // Controleer of de tegel AL ooit geladen is (dus in cache zit)
+                if (tile.isLoaded()) {
+                    // Oude tegel bestaat! Gebruik die als fallback.
+                	try {
+                    System.out.println("Offline: gebruik gecachte versie voor " + tile.getUrl());
+                	} catch (Exception e1) {
+                		
+                	}
+                    // Belangrijk: zet de status goed
+                    tile.setError("");           // Verwijder de foutmelding
+                    tile.setLoaded(true);          // Blijf aangeven dat hij geladen is
+                    
+                    // Rapporteer als succes (ook al is het een oude versie)
+                    listener.tileLoadingFinished(tile, true);
+                } else {
+                    // Echt geen enkele versie beschikbaar
+                    tile.setError(e.getMessage());
+                    listener.tileLoadingFinished(tile, false);
+                    
+                    // Alleen error loggen als er echt geen cache is
+                    if (input == null) {
+                        try {
+                            System.err.println("Failed loading " + tile.getUrl() + ": "
+                                    + e.getClass() + ": " + e.getMessage());
+                        } catch (IOException ioe) {
+                            ioe.printStackTrace();
+                        }
                     }
                 }
+                // ========== EINDE FALLBACK-LOGICA ==========
             } finally {
                 tile.loading = false;
                 tile.setLoaded(true);
