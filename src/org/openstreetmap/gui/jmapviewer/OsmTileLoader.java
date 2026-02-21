@@ -158,7 +158,8 @@ public class OsmTileLoader implements TileLoader {
     private final Tile tile;
     private InputStream input;
     private boolean force;
-    private String cachePad = System.getProperty("user.home") + "/.jmapviewer/cache/";
+    // private String cachePad = System.getProperty("user.home") +
+    // "/.jmapviewer/cache/";
 
     private OsmTileJob(Tile tile) {
       this.tile = tile;
@@ -186,51 +187,54 @@ public class OsmTileLoader implements TileLoader {
           try {
             tile.loadImage(input);
 
-            // ========== Store always in cache ==========
-            try {
-              // Determine storage directory
-              File cacheMap = new File(cachePad);
-
-              // Create sub directories according to Zoom level: /cache/13/1234_5678.png
-              File zoomDir = new File(cacheMap, String.valueOf(tile.getZoom()));
-              if (!zoomDir.exists()) {
-                zoomDir.mkdirs();
-              }
-
-              // Sla tegel op als [x]_[y].png
-              File outputFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".png");
-              ImageIO.write(tile.getImage(), "png", outputFile);
-
-              LOGGER.log(loglevel, "Stored in cache: " + outputFile.getAbsolutePath());
-
-              // Bij opslaan - sla ook metadata op
+            // ========== Store always in cache if cache directory is defined ==========
+            if (!JMapViewer.cachePad.isBlank()) {
               try {
-                // Sla tegel op
-                outputFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".png");
+                // Determine storage directory
+                File cacheMap = new File(JMapViewer.cachePad);
+
+                // Create sub directories according to Zoom level: /cache/13/1234_5678.png
+                File zoomDir = new File(cacheMap, String.valueOf(tile.getZoom()));
+                if (!zoomDir.exists()) {
+                  zoomDir.mkdirs();
+                }
+
+                // Sla tegel op als [x]_[y].png
+                File outputFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".png");
                 ImageIO.write(tile.getImage(), "png", outputFile);
 
-                if (loglevel == Level.INFO) {
-                  // SLA OOK METADATA OP - voor debugging en fallback
-                  File metaFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".meta");
-                  try (PrintWriter out = new PrintWriter(metaFile)) {
-                    out.println("url=" + tile.getUrl());
-                    out.println("zoom=" + tile.getZoom());
-                    out.println("x=" + tile.getXtile());
-                    out.println("y=" + tile.getYtile());
-                    out.println("tileSource=" + tile.getTileSource().getName());
-                    out.println("timestamp=" + System.currentTimeMillis());
+                LOGGER.log(loglevel, "Stored in cache: " + outputFile.getAbsolutePath());
+
+                // Bij opslaan - sla ook metadata op
+                try {
+                  // Sla tegel op
+                  outputFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".png");
+                  ImageIO.write(tile.getImage(), "png", outputFile);
+
+                  if (JMapViewer.debug) {
+                    // SLA OOK METADATA OP - voor debugging en fallback
+                    File metaFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".meta");
+                    try (PrintWriter out = new PrintWriter(metaFile)) {
+                      out.println("url=" + tile.getUrl());
+                      out.println("zoom=" + tile.getZoom());
+                      out.println("x=" + tile.getXtile());
+                      out.println("y=" + tile.getYtile());
+                      out.println("tileSource=" + tile.getTileSource().getName());
+                      out.println("timestamp=" + System.currentTimeMillis());
+                    }
+                  }
+                } catch (Exception ex) {
+                  // Do nothing
+                  if (JMapViewer.debug) {
+                    LOGGER.log(Level.INFO, "Kon tegel niet opslaan in cache: " + ex.getMessage());
                   }
                 }
               } catch (Exception ex) {
-                // Do nothing
+                // Cache storage may not break code ...
+                LOGGER.log(Level.WARNING, "Kon tegel niet opslaan in cache: " + ex.getMessage());
               }
-
-            } catch (Exception ex) {
-              // Cache storage may not break code ...
-              LOGGER.log(loglevel, "Kon tegel niet opslaan in cache: " + ex.getMessage());
+              // ========== End Storage ==========
             }
-            // ========== End Storage ==========
-
           } finally {
             input.close();
             input = null;
@@ -241,45 +245,50 @@ public class OsmTileLoader implements TileLoader {
 
       } catch (IOException e) {
         // ========== FALLBACK: Try loading from cache ==========
-        try {
-          // Maak een file:// URL naar je cache-bestand
-          File cacheFile = new File(cachePad + tile.getZoom() + "/" + tile.getXtile() + "_" + tile.getYtile() + ".png");
+        if (!JMapViewer.cachePad.isBlank()) {
+          try {
+            // Maak een file:// URL naar je cache-bestand
+            File cacheFile = new File(
+                JMapViewer.cachePad + tile.getZoom() + "/" + tile.getXtile() + "_" + tile.getYtile() + ".png");
 
-          if (cacheFile.exists()) {
-            // Vervang de tile URL tijdelijk
-            URL originalUrl = null;
-            try {
-              originalUrl = new URI(tile.getUrl()).toURL();
-              java.lang.reflect.Field urlField = tile.getClass().getDeclaredField("url");
-              urlField.setAccessible(true);
-              urlField.set(tile, cacheFile.toURI().toURL());
-            } catch (Exception e1) {
-              // Reflectie faalt, probeer andere aanpak
-            }
-
-            // Laad via de normale flow
-            URLConnection conn = cacheFile.toURI().toURL().openConnection();
-            tile.loadImage(conn.getInputStream());
-
-            // Zet de originele URL terug
-            if (originalUrl != null) {
+            if (cacheFile.exists()) {
+              // Vervang de tile URL tijdelijk
+              URL originalUrl = null;
               try {
+                originalUrl = new URI(tile.getUrl()).toURL();
                 java.lang.reflect.Field urlField = tile.getClass().getDeclaredField("url");
                 urlField.setAccessible(true);
-                urlField.set(tile, originalUrl);
-              } catch (Exception e2) {
+                urlField.set(tile, cacheFile.toURI().toURL());
+              } catch (Exception e1) {
+                // Reflectie faalt, probeer andere aanpak
               }
+
+              // Laad via de normale flow
+              URLConnection conn = cacheFile.toURI().toURL().openConnection();
+              tile.loadImage(conn.getInputStream());
+
+              // Zet de originele URL terug
+              if (originalUrl != null) {
+                try {
+                  java.lang.reflect.Field urlField = tile.getClass().getDeclaredField("url");
+                  urlField.setAccessible(true);
+                  urlField.set(tile, originalUrl);
+                } catch (Exception e2) {
+                }
+              }
+
+              tile.setLoaded(true);
+              listener.tileLoadingFinished(tile, true);
+              return;
             }
-
-            tile.setLoaded(true);
-            listener.tileLoadingFinished(tile, true);
-            return;
+          } catch (Exception e3) {
+            LOGGER.log(Level.WARNING, "Tegel niet gevonden in cache: " + e3.getMessage());
           }
-        } catch (Exception e3) {
-          e.printStackTrace();
+          // ========== EINDE FALLBACK ==========
+        } else {
+          // No cache, no fallback.
+          LOGGER.log(Level.WARNING, "Geen cache gevonden.");
         }
-        // ========== EINDE FALLBACK ==========
-
       } finally {
         tile.loading = false;
         tile.setLoaded(true);

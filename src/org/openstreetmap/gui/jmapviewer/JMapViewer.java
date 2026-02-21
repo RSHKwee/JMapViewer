@@ -45,9 +45,11 @@ import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
  * @author Jason Huntley
  */
 public class JMapViewer extends JPanel implements TileLoaderListener {
+  private static final long serialVersionUID = -8695725914897326615L;
 
   /** whether debug mode is enabled or not */
-  public static boolean debug;
+  public static boolean debug = false;
+  public static String cachePad = System.getProperty("user.home") + "/.jmapviewer/cache/";
 
   /** option to reverse zoom direction with mouse wheel */
   public static boolean zoomReverseWheel;
@@ -118,18 +120,6 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
   public JMapViewer() {
     this(new MemoryTileCache());
     new DefaultMapController(this);
-  }
-
-  /**
-   * Creates a new {@link JMapViewer} instance.
-   * 
-   * @param tileCache           The cache where to store tiles
-   * @param downloadThreadCount not used anymore
-   * @deprecated use {@link #JMapViewer(TileCache)}
-   */
-  @Deprecated
-  public JMapViewer(TileCache tileCache, int downloadThreadCount) {
-    this(tileCache);
   }
 
   /**
@@ -1133,7 +1123,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
    * @param visible {@code true} if zoom controls are displayed, {@code false}
    *                otherwise
    */
-  public void setZoomContolsVisible(boolean visible) {
+  public void setZoomControlsVisible(boolean visible) {
     zoomSlider.setVisible(visible);
     zoomInButton.setVisible(visible);
     zoomOutButton.setVisible(visible);
@@ -1342,5 +1332,23 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         ((JMapViewerEventListener) listeners[i + 1]).processCommand(evt);
       }
     }
+  }
+
+  /**
+   * (De)-Activate debug mode.
+   * 
+   * @param a_debug true: Active, false: Not-active
+   */
+  public void setDebug(boolean a_debug) {
+    debug = a_debug;
+  }
+
+  /**
+   * Set cache path
+   * 
+   * @param a_CachePad Cache path
+   */
+  public void setCachePad(String a_CachePad) {
+    cachePad = a_CachePad;
   }
 }
