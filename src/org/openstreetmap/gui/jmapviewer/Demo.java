@@ -57,7 +57,7 @@ public class Demo extends JFrame implements JMapViewerEventListener {
     // Listen to the map viewer for user operations so components will
     // receive events and update
     map().addJMVListener(this);
-    // map().setCachePad("e:\\temp\\");
+    map().setCachePad(""); // No cache
 
     setLayout(new BorderLayout());
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

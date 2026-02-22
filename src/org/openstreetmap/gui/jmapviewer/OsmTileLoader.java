@@ -199,20 +199,20 @@ public class OsmTileLoader implements TileLoader {
                   zoomDir.mkdirs();
                 }
 
-                // Sla tegel op als [x]_[y].png
+                // Store tile as [x]_[y].png
                 File outputFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".png");
                 ImageIO.write(tile.getImage(), "png", outputFile);
 
                 LOGGER.log(loglevel, "Stored in cache: " + outputFile.getAbsolutePath());
 
-                // Bij opslaan - sla ook metadata op
+                // Store also meta data
                 try {
-                  // Sla tegel op
+                  // Store tile
                   outputFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".png");
                   ImageIO.write(tile.getImage(), "png", outputFile);
 
                   if (JMapViewer.debug) {
-                    // SLA OOK METADATA OP - voor debugging en fallback
+                    // Store meta data for debugging purpose and fallback
                     File metaFile = new File(zoomDir, tile.getXtile() + "_" + tile.getYtile() + ".meta");
                     try (PrintWriter out = new PrintWriter(metaFile)) {
                       out.println("url=" + tile.getUrl());
@@ -226,12 +226,12 @@ public class OsmTileLoader implements TileLoader {
                 } catch (Exception ex) {
                   // Do nothing
                   if (JMapViewer.debug) {
-                    LOGGER.log(Level.INFO, "Kon tegel niet opslaan in cache: " + ex.getMessage());
+                    LOGGER.log(Level.INFO, "Tile could not be stored in cache: " + ex.getMessage());
                   }
                 }
               } catch (Exception ex) {
                 // Cache storage may not break code ...
-                LOGGER.log(Level.WARNING, "Kon tegel niet opslaan in cache: " + ex.getMessage());
+                LOGGER.log(Level.WARNING, "Tile could not be stored in cache: " + ex.getMessage());
               }
               // ========== End Storage ==========
             }
@@ -247,12 +247,12 @@ public class OsmTileLoader implements TileLoader {
         // ========== FALLBACK: Try loading from cache ==========
         if (!JMapViewer.cachePad.isBlank()) {
           try {
-            // Maak een file:// URL naar je cache-bestand
+            // URL to cache file
             File cacheFile = new File(
                 JMapViewer.cachePad + tile.getZoom() + "/" + tile.getXtile() + "_" + tile.getYtile() + ".png");
 
             if (cacheFile.exists()) {
-              // Vervang de tile URL tijdelijk
+              // Replace URL temporarily
               URL originalUrl = null;
               try {
                 originalUrl = new URI(tile.getUrl()).toURL();
@@ -260,14 +260,14 @@ public class OsmTileLoader implements TileLoader {
                 urlField.setAccessible(true);
                 urlField.set(tile, cacheFile.toURI().toURL());
               } catch (Exception e1) {
-                // Reflectie faalt, probeer andere aanpak
+                // Reflection failed, try something else...
               }
 
-              // Laad via de normale flow
+              // Load with the normal flow
               URLConnection conn = cacheFile.toURI().toURL().openConnection();
               tile.loadImage(conn.getInputStream());
 
-              // Zet de originele URL terug
+              // Put original URL back
               if (originalUrl != null) {
                 try {
                   java.lang.reflect.Field urlField = tile.getClass().getDeclaredField("url");
@@ -282,12 +282,12 @@ public class OsmTileLoader implements TileLoader {
               return;
             }
           } catch (Exception e3) {
-            LOGGER.log(Level.WARNING, "Tegel niet gevonden in cache: " + e3.getMessage());
+            LOGGER.log(Level.WARNING, "Tile not found in cache: " + e3.getMessage());
           }
           // ========== EINDE FALLBACK ==========
         } else {
           // No cache, no fallback.
-          LOGGER.log(Level.WARNING, "Geen cache gevonden.");
+          LOGGER.log(Level.WARNING, "No cache found.");
         }
       } finally {
         tile.loading = false;
